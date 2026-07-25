@@ -16,8 +16,8 @@ android {
         applicationId "com.netkaize.subscription"
         minSdk 26
         targetSdk 35
-        versionCode (project.findProperty("versionCode") ?: "1").toInteger()
-        versionName project.findProperty("versionName") ?: "1.0.0"
+        versionCode = providers.gradleProperty("versionCode").getOrElse("1").toInteger()
+        versionName = providers.gradleProperty("versionName").getOrElse("1.0.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField "String", "APP_URL", "\"https://subscription.netkaize.com/\""
     }
