@@ -1,0 +1,96 @@
+name: Android
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        with:
+          gradle-version: "8.9"
+      - name: Compile, unit test, and lint
+        run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dingyue-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+  login-smoke:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        with:
+          gradle-version: "8.9"
+      - name: Enable emulator acceleration
+        run: |
+          sudo usermod -aG kvm "$USER"
+          sudo chown "$USER" /dev/kvm
+      - name: Verify production login in an installed APK
+        uses: reactivecircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808 # v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: >
+            gradle --no-daemon connectedDebugAndroidTest
+            -Pandroid.testInstrumentationRunnerArguments.smokeEmail="${{ secrets.SMOKE_EMAIL }}"
+            -Pandroid.testInstrumentationRunnerArguments.smokePassword="${{ secrets.SMOKE_PASSWORD }}"
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, login-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        with:
+          gradle-version: "8.9"
+      - name: Restore release signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/dingyue-release.p12"
+      - name: Build signed release APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/dingyue-release.p12
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          VERSION_NAME="${GITHUB_REF_NAME#v}"
+          gradle --no-daemon assembleRelease \
+            -PversionName="$VERSION_NAME" \
+            -PversionCode="$GITHUB_RUN_NUMBER"
+          cp app/build/outputs/apk/release/app-release.apk "dingyue-${GITHUB_REF_NAME}.apk"
+          shasum -a 256 "dingyue-${GITHUB_REF_NAME}.apk" > "dingyue-${GITHUB_REF_NAME}.apk.sha256"
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          generate_release_notes: true
+          files: |
+            dingyue-${{ github.ref_name }}.apk
+            dingyue-${{ github.ref_name }}.apk.sha256
