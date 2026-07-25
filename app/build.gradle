@@ -11,6 +11,7 @@ def hasReleaseSigning = [releaseKeystorePath, releaseKeystorePassword, releaseKe
 android {
     namespace "com.netkaize.subscription"
     compileSdk 35
+    testBuildType "release"
 
     defaultConfig {
         applicationId "com.netkaize.subscription"

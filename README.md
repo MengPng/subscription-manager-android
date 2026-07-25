@@ -29,9 +29,10 @@
 推送 `v*` 标签时，GitHub Actions 会：
 
 1. 编译、运行单元测试与 Android Lint；
-2. 在 Android 模拟器安装调试 APK，并使用测试账号验证正式登录；
-3. 使用固定发布证书签名 Release APK；
-4. 发布 APK 与 SHA-256 校验文件到 GitHub Releases。
+2. 使用固定发布证书构建 Release APK；
+3. 在 Android 模拟器安装该正式签名版，并使用专用测试账号验证正式登录；
+4. 核对应用包名与签名证书；
+5. 发布 APK 与 SHA-256 校验文件到 GitHub Releases。
 
 仓库需要配置以下 GitHub Actions Secrets：
 
@@ -50,4 +51,3 @@ git push origin v1.0.1
 ```
 
 不要更换发布证书。Android 只允许用同一证书签名的新版本覆盖安装旧版本。
-
