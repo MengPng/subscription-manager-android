@@ -260,15 +260,19 @@ jobs:
           arch: x86_64
           disable-animations: true
           script: |
-            set -euo pipefail
+            # android-emulator-runner executes this via /bin/sh (dash on Ubuntu),
+            # which does not support `set -o pipefail`. Keep the script POSIX-only
+            # and let the final grep act as the pass/fail gate.
+            set -eu
             adb uninstall "$EXPECTED_PACKAGE" >/dev/null 2>&1 || true
             adb uninstall "$EXPECTED_PACKAGE.test" >/dev/null 2>&1 || true
             adb install --no-streaming "release-candidate/$APK_NAME"
             adb install --no-streaming "release-candidate/$TEST_APK_NAME"
             adb shell am instrument -w -r \
               -e class "$EXPECTED_PACKAGE.CompatibilitySmokeTest" \
-              "$EXPECTED_PACKAGE.test/androidx.test.runner.AndroidJUnitRunner" |
-              tee "release-candidate/$REPORT_NAME"
+              "$EXPECTED_PACKAGE.test/androidx.test.runner.AndroidJUnitRunner" \
+              > "release-candidate/$REPORT_NAME" 2>&1 || true
+            cat "release-candidate/$REPORT_NAME"
             grep -Fq "OK (1 test)" "release-candidate/$REPORT_NAME"
       - name: Install the candidate and verify API 35 production login and core flow
         if: matrix.production_login
@@ -285,7 +289,8 @@ jobs:
           arch: x86_64
           disable-animations: true
           script: |
-            set -euo pipefail
+            # POSIX-only script; see the API 26 job above.
+            set -eu
             : "${SMOKE_EMAIL:?SMOKE_EMAIL is not configured}"
             : "${SMOKE_PASSWORD:?SMOKE_PASSWORD is not configured}"
             adb uninstall "$EXPECTED_PACKAGE" >/dev/null 2>&1 || true
@@ -296,8 +301,9 @@ jobs:
               -e class "$EXPECTED_PACKAGE.LoginSmokeTest" \
               -e smokeEmail "$SMOKE_EMAIL" \
               -e smokePassword "$SMOKE_PASSWORD" \
-              "$EXPECTED_PACKAGE.test/androidx.test.runner.AndroidJUnitRunner" |
-              tee "release-candidate/$REPORT_NAME"
+              "$EXPECTED_PACKAGE.test/androidx.test.runner.AndroidJUnitRunner" \
+              > "release-candidate/$REPORT_NAME" 2>&1 || true
+            cat "release-candidate/$REPORT_NAME"
             grep -Fq "OK (1 test)" "release-candidate/$REPORT_NAME"
       - name: Upload native verification report
         if: always()
