@@ -42,7 +42,7 @@ class LoginSmokeTest {
         composeRule.waitUntil(timeoutMillis = 30_000) {
             runCatching { composeRule.onNodeWithTag("nav_home").fetchSemanticsNode() }.isSuccess
         }
-        composeRule.onNodeWithText("订阅支出概览").assertExists()
+        composeRule.onNodeWithText("支出概览").assertExists()
         composeRule.onNodeWithTag("nav_subscriptions").performClick()
         composeRule.onNodeWithText("已订阅服务").assertExists()
         composeRule.onNodeWithTag("nav_add").performClick()
