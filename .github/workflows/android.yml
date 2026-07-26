@@ -261,17 +261,14 @@ jobs:
           disable-animations: true
           script: |
             # android-emulator-runner executes this via /bin/sh (dash on Ubuntu),
-            # which does not support `set -o pipefail`. Keep the script POSIX-only
-            # and let the final grep act as the pass/fail gate.
+            # one line at a time: no pipefail, no backslash line continuations.
+            # The final grep acts as the pass/fail gate.
             set -eu
             adb uninstall "$EXPECTED_PACKAGE" >/dev/null 2>&1 || true
             adb uninstall "$EXPECTED_PACKAGE.test" >/dev/null 2>&1 || true
             adb install --no-streaming "release-candidate/$APK_NAME"
             adb install --no-streaming "release-candidate/$TEST_APK_NAME"
-            adb shell am instrument -w -r \
-              -e class "$EXPECTED_PACKAGE.CompatibilitySmokeTest" \
-              "$EXPECTED_PACKAGE.test/androidx.test.runner.AndroidJUnitRunner" \
-              > "release-candidate/$REPORT_NAME" 2>&1 || true
+            adb shell am instrument -w -r -e class "$EXPECTED_PACKAGE.CompatibilitySmokeTest" "$EXPECTED_PACKAGE.test/androidx.test.runner.AndroidJUnitRunner" > "release-candidate/$REPORT_NAME" 2>&1 || true
             cat "release-candidate/$REPORT_NAME"
             grep -Fq "OK (1 test)" "release-candidate/$REPORT_NAME"
       - name: Install the candidate and verify API 35 production login and core flow
@@ -297,12 +294,7 @@ jobs:
             adb uninstall "$EXPECTED_PACKAGE.test" >/dev/null 2>&1 || true
             adb install --no-streaming "release-candidate/$APK_NAME"
             adb install --no-streaming "release-candidate/$TEST_APK_NAME"
-            adb shell am instrument -w -r \
-              -e class "$EXPECTED_PACKAGE.LoginSmokeTest" \
-              -e smokeEmail "$SMOKE_EMAIL" \
-              -e smokePassword "$SMOKE_PASSWORD" \
-              "$EXPECTED_PACKAGE.test/androidx.test.runner.AndroidJUnitRunner" \
-              > "release-candidate/$REPORT_NAME" 2>&1 || true
+            adb shell am instrument -w -r -e class "$EXPECTED_PACKAGE.LoginSmokeTest" -e smokeEmail "$SMOKE_EMAIL" -e smokePassword "$SMOKE_PASSWORD" "$EXPECTED_PACKAGE.test/androidx.test.runner.AndroidJUnitRunner" > "release-candidate/$REPORT_NAME" 2>&1 || true
             cat "release-candidate/$REPORT_NAME"
             grep -Fq "OK (1 test)" "release-candidate/$REPORT_NAME"
       - name: Upload native verification report
