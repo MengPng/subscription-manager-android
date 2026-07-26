@@ -69,8 +69,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -236,16 +238,16 @@ private fun AuthScreen(state: AppUiState, viewModel: AppViewModel) {
             )
             Spacer(Modifier.height(24.dp))
             Row(
-                Modifier.fillMaxWidth().widthIn(max = maxFormWidth).clip(RoundedCornerShape(14.dp)).background(AppCanvas).padding(4.dp),
+                Modifier.fillMaxWidth().widthIn(max = maxFormWidth).clip(RoundedCornerShape(10.dp)).background(AppSearchFill).padding(2.dp),
             ) {
                 listOf(AuthMode.LOGIN to "登录", AuthMode.REGISTER to "创建账户").forEach { (item, label) ->
                     val selected = mode == item
                     TextButton(
                         onClick = { viewModel.setAuthMode(item) },
-                        modifier = Modifier.weight(1f).height(48.dp),
+                        modifier = Modifier.weight(1f).height(44.dp),
                         colors = ButtonDefaults.textButtonColors(containerColor = if (selected) Color.White else Color.Transparent),
-                        shape = RoundedCornerShape(11.dp),
-                    ) { Text(label, color = if (selected) AppBlue else AppSecondary, fontWeight = FontWeight.SemiBold) }
+                        shape = RoundedCornerShape(8.dp),
+                    ) { Text(label, color = if (selected) AppInk else AppSecondary, fontWeight = FontWeight.SemiBold) }
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -280,12 +282,12 @@ private fun AuthScreen(state: AppUiState, viewModel: AppViewModel) {
                     keyboardActions = KeyboardActions(onDone = { viewModel.authenticate(email, password, code, name) }),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                 )
                 Button(
                     onClick = { viewModel.authenticate(email, password, code, name) },
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
                 ) {
                     Text(when (mode) { AuthMode.LOGIN -> "登录并同步"; AuthMode.REGISTER -> "创建账户"; AuthMode.RESET -> "重设密码并登录" })
                 }
@@ -362,7 +364,7 @@ private fun MainShell(
             ModalBottomSheet(
                 onDismissRequest = { showEditor = false },
                 containerColor = Color.White,
-                shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             ) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
                     Box(Modifier.fillMaxWidth().widthIn(max = 640.dp)) {
@@ -407,29 +409,32 @@ internal fun AdaptiveNavigationFrame(
                 containerColor = AppCanvas,
                 snackbarHost = snackbarHost,
                 bottomBar = {
-                    NavigationBar(
-                        containerColor = Color.White,
-                        tonalElevation = 8.dp,
-                        modifier = Modifier.testTag("bottom_navigation"),
-                    ) {
-                        destinations.forEach { item ->
-                            NavigationBarItem(
-                                selected = destination == item.destination,
-                                onClick = { onNavigate(item.destination) },
-                                modifier = Modifier
-                                    .sizeIn(minWidth = MinimumTouchTargetDp.dp, minHeight = MinimumTouchTargetDp.dp)
-                                    .testTag("nav_${item.destination.name.lowercase()}"),
-                                icon = {
-                                    if (item.destination == MainDestination.ADD) {
-                                        Box(Modifier.size(52.dp).clip(CircleShape).background(AppInk), contentAlignment = Alignment.Center) {
-                                            Icon(Icons.Outlined.Add, "添加订阅", tint = Color.White)
-                                        }
-                                    } else {
-                                        Icon(item.icon, item.label)
-                                    }
-                                },
-                                label = { Text(item.label, maxLines = 1, fontSize = 11.sp) },
-                            )
+                    // iOS tab bar: white, hairline top separator, system blue tint,
+                    // no indicator pill, uniform items (no raised center button).
+                    Column(Modifier.testTag("bottom_navigation").background(Color.White)) {
+                        HorizontalDivider(thickness = 0.5.dp, color = AppDivider)
+                        NavigationBar(
+                            containerColor = Color.White,
+                            tonalElevation = 0.dp,
+                        ) {
+                            destinations.forEach { item ->
+                                NavigationBarItem(
+                                    selected = destination == item.destination,
+                                    onClick = { onNavigate(item.destination) },
+                                    modifier = Modifier
+                                        .sizeIn(minWidth = MinimumTouchTargetDp.dp, minHeight = MinimumTouchTargetDp.dp)
+                                        .testTag("nav_${item.destination.name.lowercase()}"),
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = AppBlue,
+                                        selectedTextColor = AppBlue,
+                                        unselectedIconColor = AppTertiary,
+                                        unselectedTextColor = AppTertiary,
+                                        indicatorColor = Color.Transparent,
+                                    ),
+                                    icon = { Icon(item.icon, item.label) },
+                                    label = { Text(item.label, maxLines = 1, fontSize = 10.sp) },
+                                )
+                            }
                         }
                     }
                 },
@@ -448,6 +453,13 @@ internal fun AdaptiveNavigationFrame(
                             modifier = Modifier
                                 .sizeIn(minWidth = MinimumTouchTargetDp.dp, minHeight = MinimumTouchTargetDp.dp)
                                 .testTag("nav_${item.destination.name.lowercase()}"),
+                            colors = NavigationRailItemDefaults.colors(
+                                selectedIconColor = AppBlue,
+                                selectedTextColor = AppBlue,
+                                unselectedIconColor = AppTertiary,
+                                unselectedTextColor = AppTertiary,
+                                indicatorColor = AppBlueTint,
+                            ),
                             icon = { Icon(item.icon, item.label) },
                             label = if (shortHeight) null else ({ Text(item.label, maxLines = 1) }),
                             alwaysShowLabel = !shortHeight,
@@ -490,7 +502,7 @@ private fun AppTextField(
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Next),
         modifier = modifier.fillMaxWidth().heightIn(min = 56.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
     )
 }
 
@@ -527,7 +539,7 @@ fun ServiceIcon(
     modifier: Modifier = Modifier,
 ) {
     val background = runCatching { Color(android.graphics.Color.parseColor(color)) }.getOrElse { AppBlue }
-    Box(modifier.size(48.dp).clip(RoundedCornerShape(15.dp)).background(background), contentAlignment = Alignment.Center) {
+    Box(modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(background), contentAlignment = Alignment.Center) {
         if (image.isNotBlank()) {
             val source = if (image.startsWith("/")) "https://subscription.netkaize.com$image" else image
             AsyncImage(model = source, contentDescription = name, modifier = Modifier.fillMaxSize())

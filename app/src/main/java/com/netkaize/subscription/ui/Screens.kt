@@ -51,6 +51,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
@@ -64,7 +65,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
@@ -171,22 +171,20 @@ internal fun HomeScreen(
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("订阅", style = MaterialTheme.typography.headlineMedium)
-                    Text(now.format(DateTimeFormatter.ofPattern("yyyy年M月d日")), color = AppSecondary)
+                    Text(
+                        now.format(DateTimeFormatter.ofPattern("M月d日 EEEE")),
+                        color = AppSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text("订阅", style = MaterialTheme.typography.displaySmall)
                 }
-                Surface(shape = CircleShape, color = Color(0xFFE9E9ED), modifier = Modifier.size(52.dp)) {
-                    Box(contentAlignment = Alignment.Center) { Text(user.displayName.take(1), fontWeight = FontWeight.Bold, color = AppBlue) }
+                Surface(shape = CircleShape, color = AppFill, modifier = Modifier.size(44.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.Person, "个人中心", tint = AppSecondary, modifier = Modifier.size(22.dp))
+                    }
                 }
             }
-        }
-        item {
-            Text(
-                "订阅，一目了然。",
-                fontSize = if (expanded) 40.sp else 34.sp,
-                lineHeight = if (expanded) 48.sp else 41.sp,
-                fontWeight = FontWeight.Bold,
-                color = AppInk,
-            )
         }
         item {
             if (expanded) {
@@ -310,61 +308,56 @@ private fun OverviewCard(
     expanded: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    ElevatedCard(
+    Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(containerColor = AppDarkCard),
-        shape = RoundedCornerShape(28.dp),
-        elevation = CardDefaults.elevatedCardElevation(8.dp),
+        colors = CardDefaults.cardColors(containerColor = AppCard),
+        shape = RoundedCornerShape(12.dp),
     ) {
         BoxWithConstraints {
             val fontScale = LocalDensity.current.fontScale
             val narrowContent = maxWidth < 360.dp || fontScale >= 1.5f
-            val amountSize = when {
-                fontScale >= 1.5f -> 34.sp
-                maxWidth < 360.dp -> 38.sp
-                expanded -> 52.sp
-                else -> 42.sp
-            }
             Column(
-                Modifier.padding(if (expanded) 30.dp else if (maxWidth < 360.dp) 20.dp else 24.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                Modifier.padding(if (expanded) 22.dp else if (maxWidth < 360.dp) 16.dp else 18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (narrowContent) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("订阅支出概览", color = Color.White.copy(.68f))
-                        Text("●  $activeCount 项生效", color = Color(0xFFFFD77B))
-                    }
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("订阅支出概览", color = Color.White.copy(.68f), modifier = Modifier.weight(1f))
-                        Text("●  $activeCount 项生效", color = Color(0xFFFFD77B))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("支出概览", color = AppSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Box(
+                        Modifier.clip(RoundedCornerShape(20.dp))
+                            .background(if (dirty) AppOrangeTint else AppGreenTint)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Text(
+                            "$activeCount 项生效",
+                            color = if (dirty) AppOrange else AppGreen,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                 }
-                Text("下月支出预计", color = Color.White.copy(.68f))
+                Text("下月支出预计", color = AppSecondary, style = MaterialTheme.typography.bodySmall)
                 Text(
                     month,
-                    color = Color.White,
-                    fontSize = amountSize,
-                    lineHeight = amountSize * 1.12f,
-                    fontWeight = FontWeight.Bold,
+                    color = AppInk,
+                    style = if (narrowContent) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.displaySmall,
                     maxLines = 2,
                     overflow = TextOverflow.Visible,
                 )
                 if (narrowContent) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        DarkMetric("年度支出预计", annual, Modifier.fillMaxWidth())
-                        DarkMetric("累计费用估算", spent, Modifier.fillMaxWidth())
+                        MetricTile("年度支出预计", annual, Modifier.fillMaxWidth())
+                        MetricTile("累计费用估算", spent, Modifier.fillMaxWidth())
                     }
                 } else {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        DarkMetric("年度支出预计", annual, Modifier.weight(1f))
-                        DarkMetric("累计费用估算", spent, Modifier.weight(1f))
+                        MetricTile("年度支出预计", annual, Modifier.weight(1f))
+                        MetricTile("累计费用估算", spent, Modifier.weight(1f))
                     }
                 }
                 Text(
                     if (dirty) "本机有待同步修改" else "按当前价格与订阅时间线估算",
-                    color = if (dirty) Color(0xFFFFD77B) else Color.White.copy(.65f),
-                    style = MaterialTheme.typography.labelMedium,
+                    color = if (dirty) AppOrange else AppTertiary,
+                    style = MaterialTheme.typography.bodySmall,
                 )
             }
         }
@@ -407,21 +400,21 @@ private fun HomeMetricSummary(
 }
 
 @Composable
-private fun DarkMetric(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier.background(Color.White.copy(.07f), RoundedCornerShape(18.dp)).padding(14.dp)) {
-        Text(label, color = Color.White.copy(.62f), fontSize = 12.sp)
-        Spacer(Modifier.height(5.dp))
-        Text(value, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 2)
+private fun MetricTile(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier.background(AppFill, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Text(label, color = AppSecondary, style = MaterialTheme.typography.labelMedium)
+        Spacer(Modifier.height(3.dp))
+        Text(value, color = AppInk, style = MaterialTheme.typography.titleMedium, maxLines = 2)
     }
 }
 
 @Composable
 private fun MetricCard(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-        Column(Modifier.padding(16.dp)) {
-            Text(label, color = AppSecondary, style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(8.dp))
-            Text(value, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Visible)
+    Card(modifier, shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = AppCard)) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Text(label, color = AppSecondary, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(4.dp))
+            Text(value, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Visible)
         }
     }
 }
@@ -436,29 +429,48 @@ private fun DueCard(
 ) {
     var confirmCancellation by remember(subscription.id, date) { mutableStateOf(false) }
     val confirmed = subscription.lastReviewedAt == LocalDate.now()
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Card(colors = CardDefaults.cardColors(containerColor = AppCard), shape = RoundedCornerShape(12.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(58.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFFE6F1FF)), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(AppFill), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), date).coerceAtLeast(0).toString(), color = AppBlue, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                        Text("天后", color = AppBlue, fontSize = 11.sp)
+                        Text(java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), date).coerceAtLeast(0).toString(), color = AppInk, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text("天后", color = AppSecondary, fontSize = 11.sp)
                     }
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("${subscription.name} · ${formatMoney(subscription.priceCny, state.session?.user?.currencyCode ?: "CNY", state.currencyRates.rates)}", fontWeight = FontWeight.Bold)
+                    Text("${subscription.name} · ${formatMoney(subscription.priceCny, state.session?.user?.currencyCode ?: "CNY", state.currencyRates.rates)}", style = MaterialTheme.typography.titleLarge)
                     Text(date.format(DateTimeFormatter.ofPattern("M月d日 E")), color = AppSecondary, style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(onClick = { confirmCancellation = true }, modifier = Modifier.weight(1f).height(48.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = AppRed)) { Text("到期取消") }
-                Button(
-                    onClick = { onConfirmRenewal(subscription) },
-                    enabled = !confirmed,
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppGreen),
-                ) { Text(if (confirmed) "✓ 已确认" else "确认续费") }
+                FilledTonalButton(
+                    onClick = { confirmCancellation = true },
+                    modifier = Modifier.weight(1f).height(46.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = AppRedTint, contentColor = AppRed),
+                ) { Text("到期取消") }
+                if (confirmed) {
+                    FilledTonalButton(
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier.weight(1f).height(46.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = AppGreenTint,
+                            contentColor = AppGreen,
+                            disabledContainerColor = AppGreenTint,
+                            disabledContentColor = AppGreen,
+                        ),
+                    ) { Text("✓ 已确认") }
+                } else {
+                    Button(
+                        onClick = { onConfirmRenewal(subscription) },
+                        modifier = Modifier.weight(1f).height(46.dp),
+                        shape = RoundedCornerShape(12.dp),
+                    ) { Text("确认续费") }
+                }
             }
         }
     }
@@ -489,12 +501,12 @@ private fun CategoryCard(
     val next = values
         .mapNotNull { subscription -> BillingCalculator.nextOccurrence(subscription)?.let { subscription to it } }
         .minByOrNull { it.second }
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp), modifier = modifier.fillMaxWidth().clickable(onClick = onOpen)) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(48.dp).clip(RoundedCornerShape(15.dp)).background(Color(0xFFE6F1FF)), contentAlignment = Alignment.Center) { Text(category.take(1), color = AppBlue, fontWeight = FontWeight.Bold) }
-            Spacer(Modifier.width(14.dp))
+    Card(colors = CardDefaults.cardColors(containerColor = AppCard), shape = RoundedCornerShape(12.dp), modifier = modifier.fillMaxWidth().clickable(onClick = onOpen)) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(AppBlueTint), contentAlignment = Alignment.Center) { Text(category.take(1), color = AppBlue, fontWeight = FontWeight.SemiBold) }
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(category, fontWeight = FontWeight.Bold)
+                Text(category, style = MaterialTheme.typography.titleLarge)
                 Text(
                     next?.let { "${values.size} 项 · ${it.first.name} ${it.second.format(DateTimeFormatter.ofPattern("M月d日"))} 扣费" }
                         ?: "${values.size} 项 · 暂无待扣",
@@ -504,25 +516,35 @@ private fun CategoryCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Icon(Icons.Outlined.ChevronRight, null, tint = AppBlue)
+            Icon(Icons.Outlined.ChevronRight, null, tint = AppTertiary)
         }
     }
 }
 
 @Composable
 private fun SectionTitle(title: String, trailing: String) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        Text(trailing, color = AppSecondary)
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp, start = 2.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+        Text(trailing, color = AppTertiary, style = MaterialTheme.typography.bodySmall)
     }
 }
 
 @Composable
 private fun EmptyCard(message: String) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-        Text(message, color = AppSecondary, modifier = Modifier.padding(22.dp))
+    Card(colors = CardDefaults.cardColors(containerColor = AppCard), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Text(message, color = AppSecondary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(24.dp))
     }
 }
+
+// iOS search field: gray fill, no visible outline, 10pt radius.
+@Composable
+private fun searchFieldColors() = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = AppSearchFill,
+    unfocusedContainerColor = AppSearchFill,
+    focusedBorderColor = Color.Transparent,
+    unfocusedBorderColor = Color.Transparent,
+    cursorColor = AppBlue,
+)
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -549,13 +571,13 @@ internal fun SubscriptionsScreen(
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("已订阅服务", style = MaterialTheme.typography.headlineMedium)
-                    Text("${filtered.size} 项 · 按最近扣费排序", color = AppSecondary)
+                    Text("已订阅服务", style = MaterialTheme.typography.displaySmall)
+                    Text("${filtered.size} 项 · 按最近扣费排序", color = AppSecondary, style = MaterialTheme.typography.bodySmall)
                 }
                 FilledTonalButton(
                     onClick = { showFilters = true },
                     modifier = Modifier.heightIn(min = MinimumTouchTargetDp.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(10.dp),
                 ) {
                     Icon(Icons.Outlined.FilterList, null)
                     Spacer(Modifier.width(6.dp))
@@ -568,10 +590,11 @@ internal fun SubscriptionsScreen(
                 value = query,
                 onValueChange = { query = it },
                 placeholder = { Text("搜索服务或类目") },
-                leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                leadingIcon = { Icon(Icons.Outlined.Search, null, tint = AppTertiary) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = searchFieldColors(),
             )
         }
         if (activeFilterCount > 0) item {
@@ -619,7 +642,15 @@ internal fun SubscriptionsScreen(
         if (filtered.isEmpty()) item { EmptyCard("没有符合条件的订阅") }
         val groups = filtered.groupBy { it.category }
         groups.forEach { (group, values) ->
-            item(key = "title-$group") { Text(group, color = AppBlue, fontWeight = FontWeight.Bold) }
+            item(key = "title-$group") {
+                Text(
+                    group,
+                    color = AppSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 2.dp, top = 4.dp),
+                )
+            }
             if (layout.isExpanded) {
                 items(values.chunked(2), key = { row -> row.joinToString("|") { it.id } }) { row ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -646,7 +677,7 @@ internal fun SubscriptionsScreen(
         ModalBottomSheet(
             onDismissRequest = { showFilters = false },
             containerColor = Color.White,
-            shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         ) {
             Column(
                 modifier = Modifier
@@ -702,7 +733,7 @@ internal fun SubscriptionsScreen(
                 Button(
                     onClick = { showFilters = false },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(15.dp),
+                    shape = RoundedCornerShape(12.dp),
                 ) {
                     Text("查看 ${filtered.size} 项订阅")
                 }
@@ -738,7 +769,7 @@ private fun SubscriptionRow(
     val scope = rememberCoroutineScope()
     SwipeToDismissBox(
         state = swipeState,
-        modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)),
+        modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
         enableDismissFromStartToEnd = false,
         enableDismissFromEndToStart = true,
         backgroundContent = {
@@ -763,8 +794,8 @@ private fun SubscriptionRow(
         },
     ) {
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = AppCard),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit),
         ) {
             BoxWithConstraints {
@@ -775,32 +806,32 @@ private fun SubscriptionRow(
                     "${subscription.cycle.label} · ${next?.format(DateTimeFormatter.ofPattern("M月d日")) ?: subscription.status.label}"
                 }
                 if (stacked) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             ServiceIcon(subscription.name, subscription.icon, subscription.image, subscription.color, subscription.iconKey)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(subscription.name, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(subscription.name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 Text(detail, color = AppSecondary, style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                         Text(
                             formatMoney(subscription.priceCny, state.session?.user?.currencyCode ?: "CNY", state.currencyRates.rates),
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium,
                             maxLines = 2,
                         )
                     }
                 } else {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         ServiceIcon(subscription.name, subscription.icon, subscription.image, subscription.color, subscription.iconKey)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(subscription.name, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(subscription.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(detail, color = AppSecondary, style = MaterialTheme.typography.bodyMedium)
                         }
                         Text(
                             formatMoney(subscription.priceCny, state.session?.user?.currencyCode ?: "CNY", state.currencyRates.rates),
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium,
                             maxLines = 2,
                         )
                     }
@@ -826,7 +857,7 @@ internal fun AddScreen(
     PageContainer(layout) {
         item { PageHeader("添加订阅", "模板与自定义已分开") }
         item {
-            Button(onClick = onCustom, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(15.dp)) {
+            Button(onClick = onCustom, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(12.dp)) {
                 Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("添加自定义服务")
             }
         }
@@ -835,10 +866,11 @@ internal fun AddScreen(
                 value = query,
                 onValueChange = { query = it },
                 placeholder = { Text("搜索官方服务模板") },
-                leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                leadingIcon = { Icon(Icons.Outlined.Search, null, tint = AppTertiary) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = searchFieldColors(),
             )
         }
         item {
@@ -896,8 +928,8 @@ private fun TemplateTile(
             BillingCalculator.effectiveStatus(it) != SubscriptionStatus.CANCELED
     }
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = AppCard),
+        shape = RoundedCornerShape(12.dp),
         modifier = modifier.clickable { if (existing != null) onExisting(existing) else onTemplate(template) },
     ) {
         Column(
@@ -905,7 +937,7 @@ private fun TemplateTile(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             ServiceIcon(template.name, template.icon, template.image, template.color)
-            Text(template.name, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(template.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
                 existing?.let { "已订阅" }
                     ?: "${template.cycle.label} ${formatMoney(template.priceCny, state.session?.user?.currencyCode ?: "CNY", state.currencyRates.rates)}",
@@ -930,19 +962,19 @@ private fun TemplateRow(
             BillingCalculator.effectiveStatus(it) != SubscriptionStatus.CANCELED
     }
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = AppCard),
+        shape = RoundedCornerShape(12.dp),
         modifier = modifier.fillMaxWidth().clickable {
             if (existing != null) onExisting(existing) else onTemplate(template)
         },
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             ServiceIcon(template.name, template.icon, template.image, template.color)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(template.name, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    if (template.isOfficial) Text("  已验证", color = AppGreen, fontSize = 11.sp)
+                    Text(template.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    if (template.isOfficial) Text("已验证", color = AppGreen, style = MaterialTheme.typography.labelMedium)
                 }
                 Text(
                     existing?.let { "已订阅 · 点击查看" }
@@ -951,7 +983,7 @@ private fun TemplateRow(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            Icon(Icons.Outlined.ChevronRight, null, tint = AppBlue)
+            Icon(Icons.Outlined.ChevronRight, null, tint = AppTertiary)
         }
     }
 }
@@ -1001,19 +1033,19 @@ internal fun AnalysisScreen(state: AppUiState, layout: AdaptiveLayoutSpec) {
         item { PageHeader("支出分析", "$year 年 · 预算与现金流双口径") }
         item {
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFE9E9EE)).padding(4.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(AppSearchFill).padding(2.dp),
             ) {
                 listOf(true to "预算视图 · 月度摊销", false to "现金流 · 预计扣费").forEach { (value, label) ->
                     TextButton(
                         onClick = { budgetMode = value },
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 44.dp),
                         colors = ButtonDefaults.textButtonColors(
                             containerColor = if (budgetMode == value) Color.White else Color.Transparent,
-                            contentColor = if (budgetMode == value) AppBlue else AppSecondary,
+                            contentColor = if (budgetMode == value) AppInk else AppSecondary,
                         ),
-                        shape = RoundedCornerShape(11.dp),
+                        shape = RoundedCornerShape(8.dp),
                     ) {
-                        Text(label, maxLines = 2)
+                        Text(label, maxLines = 2, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -1087,10 +1119,10 @@ internal fun AnalysisScreen(state: AppUiState, layout: AdaptiveLayoutSpec) {
 
 @Composable
 private fun AnalysisChartCard(total: String, values: List<Double>, budgetMode: Boolean, modifier: Modifier = Modifier) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(24.dp), modifier = modifier.fillMaxWidth()) {
+    Card(colors = CardDefaults.cardColors(containerColor = AppCard), shape = RoundedCornerShape(12.dp), modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp)) {
-            Text(if (budgetMode) "年度累计预算" else "年度预计扣费", color = AppSecondary)
-            Text(total, fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+            Text(if (budgetMode) "年度累计预算" else "年度预计扣费", color = AppSecondary, style = MaterialTheme.typography.bodySmall)
+            Text(total, style = MaterialTheme.typography.displaySmall, maxLines = 2)
             Text(
                 if (budgetMode) "按可计费天数摊销，适合观察长期成本" else "只在预计收费日计入，适合安排现金流",
                 color = AppSecondary,
@@ -1099,9 +1131,9 @@ private fun AnalysisChartCard(total: String, values: List<Double>, budgetMode: B
             Spacer(Modifier.height(20.dp))
             BarChart(values, Modifier.fillMaxWidth().height(190.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("1月", color = AppSecondary, fontSize = 11.sp)
-                Text("6月", color = AppSecondary, fontSize = 11.sp)
-                Text("12月", color = AppSecondary, fontSize = 11.sp)
+                Text("1月", color = AppTertiary, style = MaterialTheme.typography.labelMedium)
+                Text("6月", color = AppTertiary, style = MaterialTheme.typography.labelMedium)
+                Text("12月", color = AppTertiary, style = MaterialTheme.typography.labelMedium)
             }
         }
     }
@@ -1109,11 +1141,11 @@ private fun AnalysisChartCard(total: String, values: List<Double>, budgetMode: B
 
 @Composable
 private fun AnalysisMetricCard(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp), modifier = modifier) {
-        Column(Modifier.padding(15.dp)) {
+    Card(colors = CardDefaults.cardColors(containerColor = AppCard), shape = RoundedCornerShape(12.dp), modifier = modifier) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Text(label, color = AppSecondary, style = MaterialTheme.typography.bodySmall)
-            Spacer(Modifier.height(6.dp))
-            Text(value, fontWeight = FontWeight.Bold, maxLines = 2)
+            Spacer(Modifier.height(4.dp))
+            Text(value, style = MaterialTheme.typography.titleLarge, maxLines = 2)
         }
     }
 }
@@ -1127,34 +1159,34 @@ private fun CategorySpendCard(
     rates: Map<String, Double>,
     modifier: Modifier = Modifier,
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp), modifier = modifier.fillMaxWidth()) {
+    Card(colors = CardDefaults.cardColors(containerColor = AppCard), shape = RoundedCornerShape(12.dp), modifier = modifier.fillMaxWidth()) {
         BoxWithConstraints {
             val stacked = maxWidth < 340.dp || LocalDensity.current.fontScale >= 1.5f
             if (stacked) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFFE6F1FF)), contentAlignment = Alignment.Center) {
-                            Text(category.take(1), color = AppBlue, fontWeight = FontWeight.Bold)
+                        Box(Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(AppBlueTint), contentAlignment = Alignment.Center) {
+                            Text(category.take(1), color = AppBlue, fontWeight = FontWeight.SemiBold)
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(category, fontWeight = FontWeight.Bold)
-                            Text(if (total > 0) "${(value / total * 100).toInt()}% 的全年支出" else "暂无支出", color = AppSecondary, fontSize = 12.sp)
+                            Text(category, style = MaterialTheme.typography.titleLarge)
+                            Text(if (total > 0) "${(value / total * 100).toInt()}% 的全年支出" else "暂无支出", color = AppSecondary, style = MaterialTheme.typography.labelMedium)
                         }
                     }
-                    Text(formatMoney(value, currencyCode, rates), fontWeight = FontWeight.Bold)
+                    Text(formatMoney(value, currencyCode, rates), style = MaterialTheme.typography.titleMedium)
                 }
             } else {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFFE6F1FF)), contentAlignment = Alignment.Center) {
-                        Text(category.take(1), color = AppBlue, fontWeight = FontWeight.Bold)
+                    Box(Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(AppBlueTint), contentAlignment = Alignment.Center) {
+                        Text(category.take(1), color = AppBlue, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(category, fontWeight = FontWeight.Bold)
-                        Text(if (total > 0) "${(value / total * 100).toInt()}% 的全年支出" else "暂无支出", color = AppSecondary, fontSize = 12.sp)
+                        Text(category, style = MaterialTheme.typography.titleLarge)
+                        Text(if (total > 0) "${(value / total * 100).toInt()}% 的全年支出" else "暂无支出", color = AppSecondary, style = MaterialTheme.typography.labelMedium)
                     }
-                    Text(formatMoney(value, currencyCode, rates), fontWeight = FontWeight.Bold, maxLines = 2)
+                    Text(formatMoney(value, currencyCode, rates), style = MaterialTheme.typography.titleMedium, maxLines = 2)
                 }
             }
         }
@@ -1169,16 +1201,16 @@ private fun SavingsCard(
     rates: Map<String, Double>,
     modifier: Modifier = Modifier,
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFEAF4FF)), shape = RoundedCornerShape(20.dp), modifier = modifier.fillMaxWidth()) {
+    Card(colors = CardDefaults.cardColors(containerColor = AppCard), shape = RoundedCornerShape(12.dp), modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp)) {
-            Text("省钱建议", color = AppBlue, fontWeight = FontWeight.Bold)
-            Text(message, color = AppSecondary)
+            Text("省钱建议", color = AppBlue, style = MaterialTheme.typography.titleLarge)
+            Text(message, color = AppSecondary, style = MaterialTheme.typography.bodyMedium)
             if (expensive != null) {
                 Spacer(Modifier.height(10.dp))
                 Text(
                     "最高可影响 ${formatMoney(BillingCalculator.annualizedPrice(expensive), currencyCode, rates)}/年",
                     color = AppBlue,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelLarge,
                 )
             }
         }
@@ -1191,15 +1223,15 @@ private fun ChargeScheduleRow(
     currencyCode: String,
     rates: Map<String, Double>,
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Card(colors = CardDefaults.cardColors(containerColor = AppCard), shape = RoundedCornerShape(12.dp)) {
+        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFE6F1FF)),
+                Modifier.size(46.dp).clip(RoundedCornerShape(12.dp)).background(AppFill),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${occurrence.date.dayOfMonth}", color = AppBlue, fontWeight = FontWeight.Bold)
-                    Text("日", color = AppBlue, fontSize = 10.sp)
+                    Text("${occurrence.date.dayOfMonth}", color = AppInk, fontWeight = FontWeight.Bold)
+                    Text("日", color = AppSecondary, fontSize = 10.sp)
                 }
             }
             Spacer(Modifier.width(12.dp))
@@ -1213,10 +1245,10 @@ private fun ChargeScheduleRow(
             )
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(occurrence.subscription.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(occurrence.subscription.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(occurrence.subscription.cycle.label, color = AppSecondary, style = MaterialTheme.typography.bodySmall)
             }
-            Text(formatMoney(occurrence.subscription.priceCny, currencyCode, rates), fontWeight = FontWeight.Bold)
+            Text(formatMoney(occurrence.subscription.priceCny, currencyCode, rates), style = MaterialTheme.typography.titleMedium)
         }
     }
 }
@@ -1230,7 +1262,7 @@ private fun BarChart(values: List<Double>, modifier: Modifier = Modifier) {
         values.forEachIndexed { index, value ->
             val height = (size.height * (value / max)).toFloat().coerceAtLeast(if (value > 0) 4.dp.toPx() else 0f)
             drawRoundRect(
-                color = if (index == LocalDate.now().monthValue - 1) AppBlue else Color(0xFFD9E6F7),
+                color = if (index == LocalDate.now().monthValue - 1) AppBlue else Color(0xFFD1D1D6),
                 topLeft = androidx.compose.ui.geometry.Offset(index * gap + (gap - barWidth) / 2, size.height - height),
                 size = androidx.compose.ui.geometry.Size(barWidth, height),
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 2, barWidth / 2),
@@ -1255,11 +1287,11 @@ internal fun ProfileScreen(
     PageContainer(layout, maxContentWidthDp = if (layout.isExpanded) 840 else layout.contentMaxWidthDp) {
         item { PageHeader("个人中心", if (state.dirty) "本机有待同步修改" else "数据已安全保存") }
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
-                Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(58.dp).clip(CircleShape).background(Color(0xFFE6F1FF)), contentAlignment = Alignment.Center) { Text(user.displayName.take(1), color = AppBlue, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+            Card(colors = CardDefaults.cardColors(containerColor = AppCard), shape = RoundedCornerShape(12.dp)) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(56.dp).clip(CircleShape).background(AppBlueTint), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Person, null, tint = AppBlue, modifier = Modifier.size(26.dp)) }
                     Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) { Text(user.displayName, fontWeight = FontWeight.Bold, fontSize = 18.sp); Text(user.email, color = AppSecondary) }
+                    Column(Modifier.weight(1f)) { Text(user.displayName, style = MaterialTheme.typography.headlineSmall); Text(user.email, color = AppSecondary, style = MaterialTheme.typography.bodyMedium) }
                     IconButton(onClick = { editingName = true }, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)) { Icon(Icons.Outlined.Edit, "修改昵称", tint = AppBlue) }
                 }
             }
@@ -1293,7 +1325,7 @@ internal fun ProfileScreen(
         item {
             SettingsCard {
                 Box {
-                    SettingsRow(Icons.Outlined.Language, "显示货币", user.currencyCode, action = {
+                    SettingsRow(Icons.Outlined.Language, "显示货币", user.currencyCode, tint = AppPurple, tintBackground = AppPurpleTint, action = {
                         TextButton(onClick = { currencyMenu = true }) { Text("切换") }
                     })
                     DropdownMenu(expanded = currencyMenu, onDismissRequest = { currencyMenu = false }) {
@@ -1304,7 +1336,7 @@ internal fun ProfileScreen(
                 }
                 HorizontalDivider()
                 if (user.isAdmin) {
-                    SettingsRow(Icons.AutoMirrored.Outlined.OpenInNew, "管理控制台", "仅超级管理员可见", action = {
+                    SettingsRow(Icons.AutoMirrored.Outlined.OpenInNew, "管理控制台", "仅超级管理员可见", tint = AppIndigo, tintBackground = AppIndigoTint, action = {
                         IconButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://admin.netkaize.com/"))) }) { Icon(Icons.Outlined.ChevronRight, null, tint = AppBlue) }
                     })
                 }
@@ -1318,6 +1350,8 @@ internal fun ProfileScreen(
                         Icons.Outlined.Backup,
                         "发现旧版未归属账本",
                         "旧网页未留下可核验的账户信息，需由你确认后合并",
+                        tint = AppOrange,
+                        tintBackground = AppOrangeTint,
                         action = { TextButton(onClick = { showLegacyImport = true }) { Text("导入") } },
                     )
                 }
@@ -1325,21 +1359,30 @@ internal fun ProfileScreen(
         }
         item {
             SettingsCard {
-                SettingsRow(Icons.Outlined.Download, "导出我的订阅", "生成可恢复的本机备份", action = {
+                SettingsRow(Icons.Outlined.Download, "导出我的订阅", "生成可恢复的本机备份", tint = AppGreen, tintBackground = AppGreenTint, action = {
                     IconButton(onClick = { fileActions.export("订阅备份-${LocalDate.now()}.json", viewModel.exportBackup()) }) { Icon(Icons.Outlined.ChevronRight, null, tint = AppBlue) }
                 })
                 HorizontalDivider()
-                SettingsRow(Icons.Outlined.Upload, "导入订阅备份", "兼容网页端导出的 JSON", action = {
+                SettingsRow(Icons.Outlined.Upload, "导入订阅备份", "兼容网页端导出的 JSON", tint = AppOrange, tintBackground = AppOrangeTint, action = {
                     IconButton(onClick = fileActions.import) { Icon(Icons.Outlined.ChevronRight, null, tint = AppBlue) }
                 })
                 HorizontalDivider()
-                SettingsRow(Icons.Outlined.Backup, "恢复最近本机历史", "每次编辑前自动留存", action = {
+                SettingsRow(Icons.Outlined.Backup, "恢复最近本机历史", "每次编辑前自动留存", tint = AppGray, tintBackground = AppGrayTint, action = {
                     TextButton(onClick = viewModel::restoreLatestBackup) { Text("恢复") }
                 })
             }
         }
         item {
-            OutlinedButton(onClick = viewModel::logout, modifier = Modifier.fillMaxWidth().height(50.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = AppRed)) { Text("退出登录") }
+            // iOS destructive row: white grouped cell, centered red label.
+            Card(colors = CardDefaults.cardColors(containerColor = AppCard), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().clickable(onClick = viewModel::logout)) {
+                Text(
+                    "退出登录",
+                    color = AppRed,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+                )
+            }
         }
     }
     if (editingName) {
@@ -1368,7 +1411,7 @@ internal fun ProfileScreen(
 
 @Composable
 private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+    Card(colors = CardDefaults.cardColors(containerColor = AppCard), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
         Column(content = content)
     }
 }
@@ -1378,12 +1421,14 @@ private fun SettingsRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    tint: Color = AppBlue,
+    tintBackground: Color = AppBlueTint,
     action: @Composable () -> Unit,
 ) {
-    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFFE6F1FF)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = AppBlue) }
+    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(tintBackground), contentAlignment = Alignment.Center) { Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp)) }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.SemiBold); Text(subtitle, color = AppSecondary, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+        Column(Modifier.weight(1f)) { Text(title, style = MaterialTheme.typography.titleLarge); Text(subtitle, color = AppSecondary, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         action()
     }
 }
@@ -1391,7 +1436,7 @@ private fun SettingsRow(
 @Composable
 private fun PageHeader(title: String, subtitle: String) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) { Text(title, style = MaterialTheme.typography.headlineMedium); Text(subtitle, color = AppSecondary) }
+        Column(Modifier.weight(1f)) { Text(title, style = MaterialTheme.typography.displaySmall); Text(subtitle, color = AppSecondary, style = MaterialTheme.typography.bodySmall) }
     }
 }
 
@@ -1430,6 +1475,7 @@ fun SubscriptionEditor(
             OutlinedButton(
                 onClick = { cycleMenu = true },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                shape = RoundedCornerShape(12.dp),
             ) { Text("周期：${cycle.label}", maxLines = 2) }
             DropdownMenu(expanded = cycleMenu, onDismissRequest = { cycleMenu = false }) {
                 BillingCycle.entries.forEach { value ->
@@ -1454,6 +1500,7 @@ fun SubscriptionEditor(
             OutlinedButton(
                 onClick = { statusMenu = true },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                shape = RoundedCornerShape(12.dp),
             ) { Text("状态：${status.label}", maxLines = 2) }
             DropdownMenu(expanded = statusMenu, onDismissRequest = { statusMenu = false }) {
                 SubscriptionStatus.entries.forEach { value ->
@@ -1494,6 +1541,7 @@ fun SubscriptionEditor(
                         OutlinedButton(
                             onClick = { pickImage { selected -> image = selected; iconKey = null } },
                             modifier = Modifier.heightIn(min = 48.dp),
+                            shape = RoundedCornerShape(12.dp),
                         ) {
                             Icon(Icons.Outlined.Image, null)
                             Spacer(Modifier.width(7.dp))
@@ -1513,7 +1561,7 @@ fun SubscriptionEditor(
                                 modifier = Modifier.size(48.dp),
                                 contentPadding = PaddingValues(0.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = if (selected) Color(0xFFDDEBFF) else Color(0xFFF2F2F7),
+                                    containerColor = if (selected) AppBlueTint else AppFill,
                                     contentColor = if (selected) AppBlue else AppSecondary,
                                 ),
                             ) {
@@ -1523,7 +1571,7 @@ fun SubscriptionEditor(
                     }
                 }
             }
-            item { OutlinedTextField(name, { name = it.take(32) }, label = { Text("服务名称") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) }
+            item { OutlinedTextField(name, { name = it.take(32) }, label = { Text("服务名称") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) }
             item {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(categoryOptions, key = { it }) { value ->
@@ -1535,8 +1583,8 @@ fun SubscriptionEditor(
                     }
                 }
             }
-            item { OutlinedTextField(category, { category = it.take(16) }, label = { Text("服务类目") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) }
-            item { OutlinedTextField(price, { price = it }, label = { Text(if (cycle == BillingCycle.ONCE) "订阅服务费用（$currencyCode）" else "单次价格（$currencyCode）") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) }
+            item { OutlinedTextField(category, { category = it.take(16) }, label = { Text("服务类目") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) }
+            item { OutlinedTextField(price, { price = it }, label = { Text(if (cycle == BillingCycle.ONCE) "订阅服务费用（$currencyCode）" else "单次价格（$currencyCode）") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) }
             item {
                 if (stackSelectors) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1550,10 +1598,10 @@ fun SubscriptionEditor(
                     }
                 }
             }
-            item { OutlinedTextField(startDate, { startDate = it.take(10) }, label = { Text("首次订阅日期") }, supportingText = { Text("格式：YYYY-MM-DD") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) }
-            if (cycle != BillingCycle.ONCE) item { OutlinedTextField(nextDate, { nextDate = it.take(10) }, label = { Text("下一次扣费日（可修改）") }, supportingText = { Text("后续按自然月或自然年推算") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) }
-            item { OutlinedTextField(officialUrl, { officialUrl = it.take(240) }, label = { Text("官网订阅地址（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) }
-            item { OutlinedTextField(manageUrl, { manageUrl = it.take(240) }, label = { Text("订阅管理地址（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) }
+            item { OutlinedTextField(startDate, { startDate = it.take(10) }, label = { Text("首次订阅日期") }, supportingText = { Text("格式：YYYY-MM-DD") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) }
+            if (cycle != BillingCycle.ONCE) item { OutlinedTextField(nextDate, { nextDate = it.take(10) }, label = { Text("下一次扣费日（可修改）") }, supportingText = { Text("后续按自然月或自然年推算") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) }
+            item { OutlinedTextField(officialUrl, { officialUrl = it.take(240) }, label = { Text("官网订阅地址（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) }
+            item { OutlinedTextField(manageUrl, { manageUrl = it.take(240) }, label = { Text("订阅管理地址（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) }
             if (validHttpUrl(officialUrl) || validHttpUrl(manageUrl)) {
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1561,22 +1609,24 @@ fun SubscriptionEditor(
                             OutlinedButton(
                                 onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(officialUrl))) },
                                 modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                shape = RoundedCornerShape(12.dp),
                             ) { Text("前往官网订阅", maxLines = 2) }
                         }
                         if (validHttpUrl(manageUrl)) {
                             OutlinedButton(
                                 onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(manageUrl))) },
                                 modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                shape = RoundedCornerShape(12.dp),
                             ) { Text("管理订阅", maxLines = 2) }
                         }
                     }
                 }
             }
-            item { OutlinedTextField(note, { note = it.take(200) }, label = { Text("备注（可选）") }, minLines = 3, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) }
+            item { OutlinedTextField(note, { note = it.take(200) }, label = { Text("备注（可选）") }, minLines = 3, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) }
             error?.let { item { Text(it, color = AppRed) } }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) { Text("取消") }
+                    OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f).heightIn(min = 52.dp), shape = RoundedCornerShape(12.dp)) { Text("取消") }
                     Button(onClick = {
                         runCatching {
                             val parsedStart = LocalDate.parse(startDate)
@@ -1602,7 +1652,7 @@ fun SubscriptionEditor(
                                 iconKey = iconKey, image = image,
                             )
                         }.onSuccess(onSave).onFailure { error = it.message ?: "请检查输入内容" }
-                    }, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) { Text("保存订阅", maxLines = 2) }
+                    }, modifier = Modifier.weight(1f).heightIn(min = 52.dp), shape = RoundedCornerShape(12.dp)) { Text("保存订阅", maxLines = 2) }
                 }
             }
         }
