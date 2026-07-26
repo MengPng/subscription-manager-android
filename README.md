@@ -56,7 +56,7 @@
 
 ## 安装与更新
 
-1. 进入 [GitHub Releases](https://github.com/MengPng/subscription-manager-android/releases)，下载最新 `dingyue-v*.apk` 和同名 `.sha256` 文件。
+1. 进入 [GitHub Releases](https://github.com/MengPng/subscription-manager-android/releases)，下载最新 `subscription-v*.apk` 和同名 `.sha256` 文件。
 2. 首次安装时，按 Android 提示允许当前浏览器或文件管理器安装未知来源应用。
 3. 后续直接安装更高版本的正式 APK 即可覆盖更新，已有本机数据会由 Android 保留。
 
@@ -66,10 +66,10 @@
 
 ```bash
 # Linux
-sha256sum --check dingyue-vX.Y.Z.apk.sha256
+sha256sum --check subscription-vX.Y.Z.apk.sha256
 
 # macOS
-shasum -a 256 --check dingyue-vX.Y.Z.apk.sha256
+shasum -a 256 --check subscription-vX.Y.Z.apk.sha256
 ```
 
 ## 多币种显示

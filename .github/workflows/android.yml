@@ -100,9 +100,12 @@ jobs:
             echo "Derived Android versionCode exceeds the platform limit." >&2
             exit 1
           fi
-          artifact_name="dingyue-signed-${GITHUB_REF_NAME}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          apk_name="dingyue-${GITHUB_REF_NAME}.apk"
-          test_apk_name="dingyue-${GITHUB_REF_NAME}-androidTest.apk"
+          # NOTE: artifact/apk names must not contain the release key alias.
+          # GitHub Actions empties any step/job output whose value matches a
+          # registered secret, which previously broke the verify jobs.
+          artifact_name="signed-candidate-${GITHUB_REF_NAME}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          apk_name="subscription-${GITHUB_REF_NAME}.apk"
+          test_apk_name="subscription-${GITHUB_REF_NAME}-androidTest.apk"
           {
             echo "version_name=$version_name"
             echo "version_code=$version_code"
