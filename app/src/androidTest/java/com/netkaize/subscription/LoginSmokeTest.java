@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @RunWith(AndroidJUnit4.class)
 public class LoginSmokeTest {
@@ -35,7 +36,10 @@ public class LoginSmokeTest {
 
             assertTrue("Login page did not become ready",
                     waitForJavascript(scenario, webView,
-                            "Boolean(document.querySelector('#auth-email') && document.querySelector('#auth-submit'))",
+                            "Boolean(document.querySelector('#auth-email')"
+                                    + " && document.querySelector('#auth-submit')"
+                                    + " && document.querySelector('#auth-screen').classList.contains('show')"
+                                    + " && document.querySelector('#auth-form').dataset.mode === 'login')",
                             "true", 30));
 
             String loginScript = "(() => {"
@@ -50,14 +54,26 @@ public class LoginSmokeTest {
                     + "})()";
             assertEquals("true", evaluateJavascript(scenario, webView, loginScript));
 
-            assertTrue("The production account did not reach the authenticated ledger",
-                    waitForJavascript(scenario, webView,
-                            "Boolean(localStorage.getItem('subscription_manager_auth_v1'))"
-                                    + " && document.documentElement.dataset.accountReady === 'true'"
-                                    + " && !document.querySelector('#auth-screen').classList.contains('show')"
-                                    + " && document.querySelector('#profile-email').textContent === "
-                                    + JSONObject.quote(email),
-                            "true", 30));
+            boolean ledgerReady = waitForJavascript(scenario, webView,
+                    "Boolean(localStorage.getItem('subscription_manager_auth_v1'))"
+                            + " && document.documentElement.dataset.accountReady === 'true'"
+                            + " && !document.querySelector('#auth-screen').classList.contains('show')"
+                            + " && document.querySelector('#profile-email').textContent === "
+                            + JSONObject.quote(email),
+                    "true", 30);
+            if (!ledgerReady) {
+                String state = evaluateJavascript(scenario, webView,
+                        "JSON.stringify({"
+                                + "title:document.title,"
+                                + "href:location.href,"
+                                + "authVisible:document.querySelector('#auth-screen')?.classList.contains('show'),"
+                                + "accountReady:document.documentElement.dataset.accountReady||'',"
+                                + "hasToken:Boolean(localStorage.getItem('subscription_manager_auth_v1')),"
+                                + "profileEmail:document.querySelector('#profile-email')?.textContent||'',"
+                                + "notice:document.querySelector('#toast')?.textContent||''"
+                                + "})");
+                fail("The production account did not reach the authenticated ledger. State: " + state);
+            }
         }
     }
 

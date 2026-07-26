@@ -51,6 +51,13 @@ jobs:
         run: |
           sudo usermod -aG kvm "$USER"
           sudo chown "$USER" /dev/kvm
+      - name: Verify production endpoints from the runner
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 4 --retry-all-errors --retry-delay 3 \
+            --connect-timeout 10 --max-time 25 https://subscription.netkaize.com/ -o /dev/null
+          curl --fail --silent --show-error --retry 4 --retry-all-errors --retry-delay 3 \
+            --connect-timeout 10 --max-time 25 https://api.netkaize.com/health | grep -Fq '"status":"ok"'
       - name: Install the signed release APK and verify production login
         uses: reactivecircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808 # v2
         env:
