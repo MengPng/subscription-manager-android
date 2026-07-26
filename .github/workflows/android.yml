@@ -5,133 +5,331 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+env:
+  EXPECTED_PACKAGE: com.netkaize.subscription
+  EXPECTED_SIGNER_SHA256: e896c7007a5bdfceac94e7594bdefdd36697df8dbe06a8e63d72ea7a730c972f
 
 jobs:
-  build:
+  quality:
+    name: Unit tests and lint
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+      - name: Run unit tests, lint, and native test compilation
+        run: >-
+          ./gradlew --no-daemon
+          testDebugUnitTest
+          lintDebug
+          lintRelease
+          assembleDebug
+          compileReleaseAndroidTestKotlin
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          gradle-version: "8.9"
-      - name: Compile, unit test, and lint
-        run: gradle --no-daemon testDebugUnitTest lintDebug assembleDebug
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+          name: android-quality-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            app/build/reports/tests/
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.xml
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Upload debug APK
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: dingyue-debug
+          name: dingyue-debug-${{ github.run_id }}-${{ github.run_attempt }}
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
 
-  login-smoke:
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+  package-candidate:
+    name: Build signed release candidate
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: quality
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      artifact_name: ${{ steps.release_meta.outputs.artifact_name }}
+      apk_name: ${{ steps.release_meta.outputs.apk_name }}
+      test_apk_name: ${{ steps.release_meta.outputs.test_apk_name }}
+      version_name: ${{ steps.release_meta.outputs.version_name }}
+      version_code: ${{ steps.release_meta.outputs.version_code }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
-        with:
-          gradle-version: "8.9"
+      - name: Derive and validate release version
+        id: release_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v([1-9][0-9]*)\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$ ]]; then
+            echo "Release tags must use vMAJOR.MINOR.PATCH without leading zeroes; MINOR and PATCH are limited to three digits." >&2
+            exit 1
+          fi
+          major=$((10#${BASH_REMATCH[1]}))
+          minor=$((10#${BASH_REMATCH[2]}))
+          patch=$((10#${BASH_REMATCH[3]}))
+          version_name="${GITHUB_REF_NAME#v}"
+          version_code=$((major * 1000000 + minor * 1000 + patch))
+          if ((version_code > 2100000000)); then
+            echo "Derived Android versionCode exceeds the platform limit." >&2
+            exit 1
+          fi
+          artifact_name="dingyue-signed-${GITHUB_REF_NAME}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          apk_name="dingyue-${GITHUB_REF_NAME}.apk"
+          test_apk_name="dingyue-${GITHUB_REF_NAME}-androidTest.apk"
+          {
+            echo "version_name=$version_name"
+            echo "version_code=$version_code"
+            echo "artifact_name=$artifact_name"
+            echo "apk_name=$apk_name"
+            echo "test_apk_name=$test_apk_name"
+          } >> "$GITHUB_OUTPUT"
       - name: Restore release signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
+          set -euo pipefail
+          : "${KEYSTORE_BASE64:?ANDROID_KEYSTORE_BASE64 is not configured}"
           umask 077
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/dingyue-release.p12"
-      - name: Enable emulator acceleration
+          test -s "$RUNNER_TEMP/dingyue-release.p12"
+      - name: Build the signed candidate once
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/dingyue-release.p12
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          VERSION_NAME: ${{ steps.release_meta.outputs.version_name }}
+          VERSION_CODE: ${{ steps.release_meta.outputs.version_code }}
+          APK_NAME: ${{ steps.release_meta.outputs.apk_name }}
+          TEST_APK_NAME: ${{ steps.release_meta.outputs.test_apk_name }}
         run: |
-          sudo usermod -aG kvm "$USER"
-          sudo chown "$USER" /dev/kvm
+          set -euo pipefail
+          : "${ANDROID_KEYSTORE_PASSWORD:?ANDROID_KEYSTORE_PASSWORD is not configured}"
+          : "${ANDROID_KEY_ALIAS:?ANDROID_KEY_ALIAS is not configured}"
+          : "${ANDROID_KEY_PASSWORD:?ANDROID_KEY_PASSWORD is not configured}"
+          ./gradlew --no-daemon assembleRelease assembleReleaseAndroidTest \
+            -PversionName="$VERSION_NAME" \
+            -PversionCode="$VERSION_CODE"
+          mkdir -p release-candidate
+          install -m 0644 app/build/outputs/apk/release/app-release.apk "release-candidate/$APK_NAME"
+          install -m 0644 app/build/outputs/apk/androidTest/release/app-release-androidTest.apk \
+            "release-candidate/$TEST_APK_NAME"
+      - name: Verify package, version, signature, and SHA-256
+        env:
+          VERSION_NAME: ${{ steps.release_meta.outputs.version_name }}
+          VERSION_CODE: ${{ steps.release_meta.outputs.version_code }}
+          APK_NAME: ${{ steps.release_meta.outputs.apk_name }}
+        run: |
+          set -euo pipefail
+          apk="release-candidate/$APK_NAME"
+          apksigner="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          apkanalyzer="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
+          test -x "$apksigner"
+          test -x "$apkanalyzer"
+          test "$("$apkanalyzer" manifest application-id "$apk")" = "$EXPECTED_PACKAGE"
+          test "$("$apkanalyzer" manifest version-name "$apk")" = "$VERSION_NAME"
+          test "$("$apkanalyzer" manifest version-code "$apk")" = "$VERSION_CODE"
+          "$apksigner" verify --verbose --print-certs "$apk" |
+            tee release-candidate/apk-signature.txt
+          signer_sha256="$(
+            awk -F': ' '/Signer #1 certificate SHA-256 digest/ {print tolower($2); exit}' \
+              release-candidate/apk-signature.txt
+          )"
+          test "$signer_sha256" = "$EXPECTED_SIGNER_SHA256"
+          (
+            cd release-candidate
+            sha256sum "$APK_NAME" > "$APK_NAME.sha256"
+            sha256sum --check "$APK_NAME.sha256"
+          )
+      - name: Upload immutable signed candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.release_meta.outputs.artifact_name }}
+          path: release-candidate/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Remove signing key from the runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/dingyue-release.p12"
+
+  verify-candidate:
+    name: Verify exact candidate · ${{ matrix.device_name }}
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package-candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - device_name: Android 8 / API 26 compatibility
+            api_level: 26
+            production_login: false
+            report_name: api26-compatibility.txt
+            report_id: api26-compatibility
+          - device_name: Android 15 / API 35 production smoke
+            api_level: 35
+            production_login: true
+            report_name: api35-production-smoke.txt
+            report_id: api35-production-smoke
+    steps:
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.package-candidate.outputs.artifact_name }}
+          path: release-candidate
+      - name: Recheck candidate identity
+        env:
+          APK_NAME: ${{ needs.package-candidate.outputs.apk_name }}
+          VERSION_NAME: ${{ needs.package-candidate.outputs.version_name }}
+          VERSION_CODE: ${{ needs.package-candidate.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          apk="release-candidate/$APK_NAME"
+          apksigner="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          apkanalyzer="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
+          (
+            cd release-candidate
+            sha256sum --check "$APK_NAME.sha256"
+          )
+          test "$("$apkanalyzer" manifest application-id "$apk")" = "$EXPECTED_PACKAGE"
+          test "$("$apkanalyzer" manifest version-name "$apk")" = "$VERSION_NAME"
+          test "$("$apkanalyzer" manifest version-code "$apk")" = "$VERSION_CODE"
+          signer_sha256="$(
+            "$apksigner" verify --print-certs "$apk" |
+              awk -F': ' '/Signer #1 certificate SHA-256 digest/ {print tolower($2); exit}'
+          )"
+          test "$signer_sha256" = "$EXPECTED_SIGNER_SHA256"
       - name: Verify production endpoints from the runner
+        if: matrix.production_login
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --retry 4 --retry-all-errors --retry-delay 3 \
             --connect-timeout 10 --max-time 25 https://subscription.netkaize.com/ -o /dev/null
           curl --fail --silent --show-error --retry 4 --retry-all-errors --retry-delay 3 \
-            --connect-timeout 10 --max-time 25 https://api.netkaize.com/health | grep -Fq '"status":"ok"'
-      - name: Install the signed release APK and verify production login
+            --connect-timeout 10 --max-time 25 https://api.netkaize.com/health |
+            grep -Fq '"status":"ok"'
+      - name: Enable emulator acceleration
+        run: |
+          sudo usermod -aG kvm "$USER"
+          sudo chown "$USER" /dev/kvm
+      - name: Install the candidate and verify API 26 compatibility
+        if: ${{ !matrix.production_login }}
         uses: reactivecircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808 # v2
         env:
-          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/dingyue-release.p12
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
-          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+          APK_NAME: ${{ needs.package-candidate.outputs.apk_name }}
+          TEST_APK_NAME: ${{ needs.package-candidate.outputs.test_apk_name }}
+          REPORT_NAME: ${{ matrix.report_name }}
         with:
-          api-level: 35
+          api-level: ${{ matrix.api_level }}
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: >-
-            gradle --no-daemon connectedReleaseAndroidTest
-            -PversionName="${GITHUB_REF_NAME#v}"
-            -PversionCode="$GITHUB_RUN_NUMBER"
-            -Pandroid.testInstrumentationRunnerArguments.smokeEmail="$SMOKE_EMAIL"
-            -Pandroid.testInstrumentationRunnerArguments.smokePassword="$SMOKE_PASSWORD"
-      - name: Upload login verification report
+          script: |
+            set -euo pipefail
+            adb uninstall "$EXPECTED_PACKAGE" >/dev/null 2>&1 || true
+            adb uninstall "$EXPECTED_PACKAGE.test" >/dev/null 2>&1 || true
+            adb install --no-streaming "release-candidate/$APK_NAME"
+            adb install --no-streaming "release-candidate/$TEST_APK_NAME"
+            adb shell am instrument -w -r \
+              -e class "$EXPECTED_PACKAGE.CompatibilitySmokeTest" \
+              "$EXPECTED_PACKAGE.test/androidx.test.runner.AndroidJUnitRunner" |
+              tee "release-candidate/$REPORT_NAME"
+            grep -Fq "OK (1 test)" "release-candidate/$REPORT_NAME"
+      - name: Install the candidate and verify API 35 production login and core flow
+        if: matrix.production_login
+        uses: reactivecircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808 # v2
+        env:
+          APK_NAME: ${{ needs.package-candidate.outputs.apk_name }}
+          TEST_APK_NAME: ${{ needs.package-candidate.outputs.test_apk_name }}
+          REPORT_NAME: ${{ matrix.report_name }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+        with:
+          api-level: ${{ matrix.api_level }}
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            : "${SMOKE_EMAIL:?SMOKE_EMAIL is not configured}"
+            : "${SMOKE_PASSWORD:?SMOKE_PASSWORD is not configured}"
+            adb uninstall "$EXPECTED_PACKAGE" >/dev/null 2>&1 || true
+            adb uninstall "$EXPECTED_PACKAGE.test" >/dev/null 2>&1 || true
+            adb install --no-streaming "release-candidate/$APK_NAME"
+            adb install --no-streaming "release-candidate/$TEST_APK_NAME"
+            adb shell am instrument -w -r \
+              -e class "$EXPECTED_PACKAGE.LoginSmokeTest" \
+              -e smokeEmail "$SMOKE_EMAIL" \
+              -e smokePassword "$SMOKE_PASSWORD" \
+              "$EXPECTED_PACKAGE.test/androidx.test.runner.AndroidJUnitRunner" |
+              tee "release-candidate/$REPORT_NAME"
+            grep -Fq "OK (1 test)" "release-candidate/$REPORT_NAME"
+      - name: Upload native verification report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: signed-release-login-report
-          path: app/build/reports/androidTests/connected/
-          if-no-files-found: ignore
+          name: signed-release-${{ matrix.report_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-candidate/${{ matrix.report_name }}
+          if-no-files-found: warn
+          retention-days: 30
 
   release:
+    name: Publish verified candidate
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, login-smoke]
+    needs: [package-candidate, verify-candidate]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
-        with:
-          gradle-version: "8.9"
-      - name: Restore release signing key
+          name: ${{ needs.package-candidate.outputs.artifact_name }}
+          path: release-candidate
+      - name: Recheck downloaded candidate checksum
         env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          umask 077
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/dingyue-release.p12"
-      - name: Build signed release APK
-        env:
-          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/dingyue-release.p12
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          VERSION_NAME="${GITHUB_REF_NAME#v}"
-          gradle --no-daemon assembleRelease \
-            -PversionName="$VERSION_NAME" \
-            -PversionCode="$GITHUB_RUN_NUMBER"
-          cp app/build/outputs/apk/release/app-release.apk "dingyue-${GITHUB_REF_NAME}.apk"
-      - name: Verify package identity and release signature
+          APK_NAME: ${{ needs.package-candidate.outputs.apk_name }}
         run: |
           set -euo pipefail
-          APK="dingyue-${GITHUB_REF_NAME}.apk"
-          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          APKANALYZER="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
-          test "$("$APKANALYZER" manifest application-id "$APK")" = "com.netkaize.subscription"
-          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee apk-signature.txt
-          tr '[:upper:]' '[:lower:]' < apk-signature.txt |
-            grep -Fq "e896c7007a5bdfceac94e7594bdefdd36697df8dbe06a8e63d72ea7a730c972f"
-          shasum -a 256 "dingyue-${GITHUB_REF_NAME}.apk" > "dingyue-${GITHUB_REF_NAME}.apk.sha256"
+          cd release-candidate
+          sha256sum --check "$APK_NAME.sha256"
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
-            dingyue-${{ github.ref_name }}.apk
-            dingyue-${{ github.ref_name }}.apk.sha256
+            release-candidate/${{ needs.package-candidate.outputs.apk_name }}
+            release-candidate/${{ needs.package-candidate.outputs.apk_name }}.sha256

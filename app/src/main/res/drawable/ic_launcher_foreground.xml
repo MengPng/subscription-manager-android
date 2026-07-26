@@ -1,20 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="240"
-    android:viewportHeight="240">
-    <path
-        android:fillColor="#1D1D1F"
-        android:pathData="M66,55C66,45.611 73.611,38 83,38H157C166.389,38 174,45.611 174,55V185.2C174,199.289 157.99,207.267 146.814,198.685L122.2,179.78C116.364,175.298 108.236,175.298 102.4,179.78L77.186,199.146C66.01,207.728 50,199.75 50,185.661V71C50,62.163 57.163,55 66,55Z" />
-    <path
-        android:fillColor="#FF6A00"
-        android:pathData="M122,78C139.673,78 154,92.327 154,110V131C154,148.673 139.673,163 122,163C104.327,163 90,148.673 90,131V110C90,92.327 104.327,78 122,78Z" />
-    <path
-        android:fillColor="#FF6A00"
-        android:pathData="M75,47A10,10 0,1 1,75 67A10,10 0,1 1,75 47" />
-    <path
-        android:fillColor="#FF6A00"
-        android:pathData="M192,74L197.245,87.755L211,93L197.245,98.245L192,112L186.755,98.245L173,93L186.755,87.755Z" />
-</vector>
-
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="92dp"
+        android:height="92dp"
+        android:gravity="center">
+        <bitmap
+            android:antialias="true"
+            android:filter="true"
+            android:gravity="fill"
+            android:src="@drawable/ic_launcher_brand" />
+    </item>
+</layer-list>
