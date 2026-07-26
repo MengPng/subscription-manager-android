@@ -11,7 +11,7 @@ final class NavigationPolicy {
     }
 
     static boolean shouldStayInApp(String url) {
-        if (url == null || url.isBlank()) {
+        if (url == null || url.trim().isEmpty()) {
             return false;
         }
         try {

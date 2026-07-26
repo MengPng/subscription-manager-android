@@ -8,9 +8,10 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.net.http.SslError;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Message;
-import android.view.View;
+import android.window.OnBackInvokedDispatcher;
 import android.webkit.CookieManager;
 import android.webkit.SslErrorHandler;
 import android.webkit.ValueCallback;
@@ -22,6 +23,12 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+
 public final class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 1001;
     private static final String OFFLINE_URL = "file:///android_asset/offline.html";
@@ -32,12 +39,13 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        configureSystemBars();
 
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(245, 245, 247));
         setContentView(webView);
+        configureSystemBars();
         configureWebView();
+        configureBackNavigation();
 
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
             webView.loadUrl(BuildConfig.APP_URL);
@@ -45,11 +53,32 @@ public final class MainActivity extends Activity {
     }
 
     private void configureSystemBars() {
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(Color.rgb(245, 245, 247));
         getWindow().setNavigationBarColor(Color.WHITE);
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-        );
+        WindowInsetsControllerCompat controller =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        controller.setAppearanceLightStatusBars(true);
+        controller.setAppearanceLightNavigationBars(true);
+        ViewCompat.setOnApplyWindowInsetsListener(webView, (view, windowInsets) -> {
+            int safeAreaTypes = WindowInsetsCompat.Type.systemBars()
+                    | WindowInsetsCompat.Type.displayCutout();
+            Insets safeArea = windowInsets.getInsets(safeAreaTypes);
+            view.setPadding(safeArea.left, safeArea.top, safeArea.right, safeArea.bottom);
+            return new WindowInsetsCompat.Builder(windowInsets)
+                    .setInsets(safeAreaTypes, Insets.NONE)
+                    .build();
+        });
+        ViewCompat.requestApplyInsets(webView);
+    }
+
+    private void configureBackNavigation() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                    this::handleBackNavigation
+            );
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -61,8 +90,8 @@ public final class MainActivity extends Activity {
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setSupportZoom(false);
-        settings.setBuiltInZoomControls(false);
+        settings.setSupportZoom(true);
+        settings.setBuiltInZoomControls(true);
         settings.setDisplayZoomControls(false);
         settings.setSupportMultipleWindows(true);
         settings.setJavaScriptCanOpenWindowsAutomatically(true);
@@ -136,11 +165,24 @@ public final class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack() && !OFFLINE_URL.equals(webView.getUrl())) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
+        handleBackNavigation();
+    }
+
+    private void handleBackNavigation() {
+        webView.evaluateJavascript(
+                "Boolean(window.closeTopOverlayForNativeBack"
+                        + " && window.closeTopOverlayForNativeBack())",
+                handled -> {
+                    if ("true".equals(handled)) {
+                        return;
+                    }
+                    if (webView.canGoBack() && !OFFLINE_URL.equals(webView.getUrl())) {
+                        webView.goBack();
+                    } else {
+                        finish();
+                    }
+                }
+        );
     }
 
     @Override

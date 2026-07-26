@@ -8,7 +8,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.json.JSONObject;
-import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -26,7 +25,7 @@ public class LoginSmokeTest {
         Bundle arguments = InstrumentationRegistry.getArguments();
         String email = arguments.getString("smokeEmail", "");
         String password = arguments.getString("smokePassword", "");
-        Assume.assumeTrue("Smoke credentials are required for the production login test",
+        assertTrue("Smoke credentials are required for the production login test",
                 !email.isEmpty() && !password.isEmpty());
 
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
@@ -54,7 +53,10 @@ public class LoginSmokeTest {
             assertTrue("The production account did not reach the authenticated ledger",
                     waitForJavascript(scenario, webView,
                             "Boolean(localStorage.getItem('subscription_manager_auth_v1'))"
-                                    + " && !document.querySelector('#auth-screen').classList.contains('show')",
+                                    + " && document.documentElement.dataset.accountReady === 'true'"
+                                    + " && !document.querySelector('#auth-screen').classList.contains('show')"
+                                    + " && document.querySelector('#profile-email').textContent === "
+                                    + JSONObject.quote(email),
                             "true", 30));
         }
     }
@@ -93,4 +95,3 @@ public class LoginSmokeTest {
         return result.get();
     }
 }
-

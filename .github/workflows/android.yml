@@ -58,17 +58,19 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
         with:
           api-level: 35
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: |
-            gradle --no-daemon connectedReleaseAndroidTest \
-              -PversionName="${GITHUB_REF_NAME#v}" \
-              -PversionCode="$GITHUB_RUN_NUMBER" \
-              -Pandroid.testInstrumentationRunnerArguments.smokeEmail="${{ secrets.SMOKE_EMAIL }}" \
-              -Pandroid.testInstrumentationRunnerArguments.smokePassword="${{ secrets.SMOKE_PASSWORD }}"
+          script: >-
+            gradle --no-daemon connectedReleaseAndroidTest
+            -PversionName="${GITHUB_REF_NAME#v}"
+            -PversionCode="$GITHUB_RUN_NUMBER"
+            -Pandroid.testInstrumentationRunnerArguments.smokeEmail="$SMOKE_EMAIL"
+            -Pandroid.testInstrumentationRunnerArguments.smokePassword="$SMOKE_PASSWORD"
       - name: Upload login verification report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

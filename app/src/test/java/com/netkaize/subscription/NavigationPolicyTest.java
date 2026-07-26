@@ -15,6 +15,8 @@ public class NavigationPolicyTest {
         assertFalse(NavigationPolicy.shouldStayInApp("https://admin.netkaize.com/"));
         assertFalse(NavigationPolicy.shouldStayInApp("https://example.com/"));
         assertFalse(NavigationPolicy.shouldStayInApp("not a url"));
+        assertFalse(NavigationPolicy.shouldStayInApp(""));
+        assertFalse(NavigationPolicy.shouldStayInApp("   "));
         assertFalse(NavigationPolicy.shouldStayInApp(null));
     }
 }
